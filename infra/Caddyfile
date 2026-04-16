@@ -1,0 +1,13 @@
+# Clawix local HTTPS reverse proxy
+# Web → https://localhost:3443
+# API → https://localhost:3444
+
+https://localhost:3443 {
+  tls /certs/localhost.pem /certs/localhost-key.pem
+  reverse_proxy web-server:3000
+}
+
+https://localhost:3444 {
+  tls /certs/localhost.pem /certs/localhost-key.pem
+  reverse_proxy api-server:3001
+}

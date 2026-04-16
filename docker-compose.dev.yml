@@ -67,7 +67,7 @@ services:
       JWT_SECRET: change-me-in-production
       BCRYPT_SALT_ROUNDS: '12'
       TEMPLATES_DIR: /app/infra/templates
-      CORS_ALLOWED_ORIGINS: http://localhost:3000
+      CORS_ALLOWED_ORIGINS: http://localhost:3000,https://localhost:3443
       WORKSPACE_BASE_PATH: /data
       WORKSPACE_HOST_BASE_PATH: ${CLAWIX_HOST_DATA_DIR:-${PWD}/data}
       SKILLS_BUILTIN_DIR: /app/skills/builtin
@@ -122,6 +122,19 @@ services:
              pnpm install --frozen-lockfile &&
              pnpm --filter @clawix/shared build &&
              pnpm --filter @clawix/web dev"
+
+  https-proxy:
+    image: caddy:2-alpine
+    container_name: clawix-https
+    ports:
+      - '3443:3443'
+      - '3444:3444'
+    volumes:
+      - ./infra/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./infra/certs:/certs:ro
+    depends_on:
+      - web-server
+      - api-server
 
 volumes:
   postgres_data:
