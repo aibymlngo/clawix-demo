@@ -295,6 +295,124 @@ pnpm run db:studio        # Open Prisma Studio (GUI)
 
 ---
 
+## Running on a Mac (Mac Mini, MacBook, etc.)
+
+This section covers installing Clawix locally on macOS and optionally pinning it to your Dock as a native-feeling app using Safari's PWA support.
+
+### Prerequisites
+
+| Tool | Install |
+|---|---|
+| [Docker Desktop](https://www.docker.com/products/docker-desktop/) | Download and install from docker.com |
+| [Homebrew](https://brew.sh) | `/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"` |
+| Node.js 20+ | `brew install node` |
+
+> **macOS Sonoma (14+) required** for the "Add to Dock" PWA feature in Safari.
+
+---
+
+### Step 1 — Clone the repo
+
+```bash
+git clone https://github.com/aibymlngo/clawix-demo.git
+cd clawix-demo
+```
+
+---
+
+### Step 2 — Configure environment
+
+```bash
+cp .env.example .env
+```
+
+Open `.env` and set the required values:
+
+```bash
+# Generate a secure encryption key and paste it in:
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+# → paste output as PROVIDER_ENCRYPTION_KEY=...
+
+# Add your AI provider key(s):
+ANTHROPIC_API_KEY=sk-ant-xxx
+# OPENAI_API_KEY=sk-xxx   # optional
+```
+
+---
+
+### Step 3 — Set up local HTTPS (required for Safari PWA)
+
+Run the one-time setup script — it installs `mkcert` via Homebrew and generates a locally trusted certificate:
+
+```bash
+./scripts/setup-https.sh
+```
+
+You will be prompted for your Mac password once (to install the root CA into Keychain). After that, Safari will trust `https://localhost` with no warnings.
+
+---
+
+### Step 4 — Build the agent container
+
+```bash
+docker build -t clawix-agent:latest -f infra/docker/agent/Dockerfile .
+```
+
+---
+
+### Step 5 — Start Clawix
+
+```bash
+docker compose -f docker-compose.dev.yml up
+```
+
+Wait about 2 minutes on first run while dependencies install. You will see logs from all services. Once ready:
+
+| Service | URL |
+|---|---|
+| Web dashboard (HTTP) | http://localhost:3000 |
+| Web dashboard (HTTPS) | https://localhost:3443 |
+| API | https://localhost:3444 |
+
+---
+
+### Step 6 — Install as a Mac app via Safari
+
+1. Open **Safari** and navigate to `https://localhost:3443`
+2. In the menu bar choose **File → Add to Dock**
+3. Confirm the name **Clawix** and click **Add**
+
+Clawix now appears in your **Dock** and **Launchpad** as a standalone app with no browser chrome — just like a native app.
+
+> On **iOS / iPadOS**: open Safari → tap the Share button → **Add to Home Screen**
+> On **Android**: open Chrome → tap the menu → **Add to Home Screen**
+
+---
+
+### Stopping and restarting
+
+```bash
+# Stop all services
+docker compose -f docker-compose.dev.yml down
+
+# Restart (fast — deps already installed)
+docker compose -f docker-compose.dev.yml up
+```
+
+---
+
+### Troubleshooting on Mac
+
+| Problem | Fix |
+|---|---|
+| Safari shows "not secure" warning | Re-run `./scripts/setup-https.sh` — the root CA may not have been installed |
+| `File → Add to Dock` is greyed out | Requires macOS Sonoma 14+ and Safari 17+ |
+| Port 3443 already in use | Change the port in `infra/Caddyfile` and `docker-compose.dev.yml` |
+| Docker containers exit immediately | Check `docker compose logs api-server` — usually a missing `.env` value |
+| Agent containers fail to start | Ensure Docker Desktop is running and has access to `/var/run/docker.sock` |
+
+---
+
 ## Contributing
 
 Contributions are welcome! Whether it's bug fixes, new features, documentation, or feedback -- we'd love your help.
