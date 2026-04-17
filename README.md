@@ -24,7 +24,7 @@ Most AI agent frameworks are either **toys** (single-process, no isolation, no a
 Clawix sits in between: **production-grade orchestration you own entirely.**
 
 - **Every agent runs in its own Docker container** -- no agent can read another's files, exhaust your host's memory, or escape its sandbox.
-- **Plug in any LLM** -- Claude and GPT-4 today, with Azure, DeepSeek, Gemini, and OpenRouter coming soon. Any OpenAI-compatible endpoint (Ollama, vLLM, etc.) works now via the custom provider.
+- **Plug in any LLM** -- OpenAI and GPT-4 today, with Azure, DeepSeek, Gemini, and OpenRouter coming soon. Any OpenAI-compatible endpoint (Ollama, vLLM, etc.) works now via the custom provider.
 - **Built for teams** -- RBAC, token budgets, audit logs, and scoped memory mean you can hand agents to your whole org without losing sleep.
 - **Reach users where they are** -- Telegram, WhatsApp, Slack, and a built-in web dashboard. One agent, many channels.
 
@@ -51,7 +51,7 @@ Break complex tasks into sub-agent DAGs. The coordinator delegates, aggregates r
 <td width="50%">
 
 ### Multi-Provider AI
-Anthropic and OpenAI out of the box, with Azure, DeepSeek, Gemini, and OpenRouter planned. Any OpenAI-compatible endpoint already works via the custom provider. Add new providers with a single config entry.
+OpenAI out of the box, with Azure, DeepSeek, Gemini, and OpenRouter planned. Any OpenAI-compatible endpoint already works via the custom provider. Add new providers with a single config entry.
 
 ### Scoped Memory System
 Persistent memory at three levels: private (per-user), group (team), and org-wide. Agents build context over time without re-prompting.
@@ -94,7 +94,7 @@ Pluggable tools with approval workflows. Bundle built-in skills, create custom o
               │  │   Loops     │  │  Execution   │  │ Coordinator   │   │
               │  └─────────────┘  └──────────────┘  └───────────────┘   │
               │                                                         │
-              │  Providers: Claude │ GPT │ OpenAI-compatible │ Custom   │
+              │  Providers: GPT │ OpenAI-compatible │ Custom            │
               └────────────────────────────┬───────────────────────-────┘
                                            │
               ┌────────────────────────────▼────────────────────────────┐
@@ -118,32 +118,21 @@ Pluggable tools with approval workflows. Bundle built-in skills, create custom o
 ### Prerequisites
 
 - **Node.js 20+** and **pnpm 9+**
-- **Docker** (for agent containers, PostgreSQL, and Redis)
+- **Docker Desktop** — must be fully started before running any docker commands (the whale icon in the menu bar must be steady, not animating)
 
 ### 1. Clone & Install
 
 ```bash
 git clone https://github.com/clawix/clawix.git
 cd clawix
-
-# One-command setup (installs deps, copies .env, starts infra)
-./scripts/setup-dev.sh
-```
-
-<details>
-<summary>Manual setup (click to expand)</summary>
-
-```bash
 pnpm install
-cp .env.example .env
-pnpm --filter @clawix/shared run build
-docker build -t clawix-agent:latest -f infra/docker/agent/Dockerfile .
-docker compose -f docker-compose.dev.yml up -d
 ```
-
-</details>
 
 ### 2. Configure
+
+```bash
+cp .env.example .env
+```
 
 Edit `.env` with your API keys:
 
@@ -151,11 +140,10 @@ Edit `.env` with your API keys:
 # Required: encryption key for provider secrets (AES-256-GCM)
 PROVIDER_ENCRYPTION_KEY=$(openssl rand -hex 32)
 
-# AI providers (used by db:seed; also env fallback at runtime)
-ANTHROPIC_API_KEY=sk-ant-xxx        # Claude
-OPENAI_API_KEY=sk-xxx               # GPT (optional)
+# AI providers — at least one required
+OPENAI_API_KEY=sk-xxx               # OpenAI / GPT (recommended)
 
-# Channels (optional -- used by db:seed to populate channel config)
+# Channels (optional)
 TELEGRAM_BOT_TOKEN=123456789:ABCdef...   # Telegram (from @BotFather)
 
 # Database (defaults work with docker-compose)
@@ -163,13 +151,38 @@ DATABASE_URL="postgresql://clawix:clawix_dev@localhost:5433/clawix"
 REDIS_URL="redis://localhost:6379"
 ```
 
-### 3. Run
+> **Supported providers:** OpenAI, Z.AI Coding, and any OpenAI-compatible endpoint (Ollama, vLLM, etc.). Gemini, Azure, DeepSeek, and OpenRouter are planned.
+
+### 3. Build & Start
 
 ```bash
-pnpm run dev    # API on :3001, Dashboard on :3000
+# Build the agent container image (one-time, ~2 min)
+docker build -t clawix-agent:latest -f infra/docker/agent/Dockerfile .
+
+# Start all services
+docker compose -f docker-compose.dev.yml up
 ```
 
-That's it. Open `http://localhost:3000` or message your Telegram bot.
+Wait for the API to print `API server listening on 0.0.0.0:3001` — this takes about 2 minutes on first run while dependencies install inside the containers.
+
+### 4. Seed the database (first run only)
+
+In a new terminal, copy and run the seed script:
+
+```bash
+cp packages/api/prisma/seed.example.ts packages/api/prisma/seed.ts
+docker exec clawix-api sh -c "cd /app/packages/api && npx tsx prisma/seed.ts"
+```
+
+### 5. Log in
+
+Open `http://localhost:3000` and log in with:
+
+| Email | Password | Role |
+|---|---|---|
+| `admin@clawix.test` | `password123` | Admin |
+| `dev@clawix.test` | `password123` | Developer |
+| `viewer@clawix.test` | `password123` | Viewer |
 
 ---
 
@@ -179,15 +192,14 @@ Built-in providers plus extensible registry -- add new ones with a single `Provi
 
 | Provider       | Detection                       | Use Case               | Status         |
 | -------------- | ------------------------------- | ---------------------- | -------------- |
-| **Anthropic**  | model starts with `claude-`     | Primary (best tools)   | Available      |
 | **OpenAI**     | model starts with `gpt-`/`o1-`/`o3-`/`o4-` | General purpose | Available |
 | **Z.AI Coding**| model starts with `glm-`        | GLM models             | Available      |
+| **Custom**     | any OpenAI-compatible endpoint  | Ollama, vLLM, etc.     | Available      |
 | **Azure**      | config key `azure_openai`       | Enterprise compliance  | Planned        |
 | **DeepSeek**   | model starts with `deepseek-`   | Cost-effective         | Planned        |
 | **Gemini**     | model starts with `gemini-`     | Google ecosystem       | Planned        |
 | **Kimi**       | model starts with `moonshot-`   | Long-context tasks     | Planned        |
 | **OpenRouter** | API key starts with `sk-or-`    | Provider gateway       | Planned        |
-| **Custom**     | any OpenAI-compatible endpoint  | Ollama, vLLM, etc.     | Available      |
 
 ## Channels
 
@@ -222,7 +234,7 @@ Clawix follows a **zero-trust architecture** for agent execution:
 | ---------- | --------------------------------------------------------- |
 | API        | NestJS 11 + Fastify                                       |
 | Frontend   | Next.js 15 + Tailwind CSS + shadcn/ui                     |
-| AI         | Multi-provider (Anthropic, OpenAI, any OpenAI-compatible) |
+| AI         | Multi-provider (OpenAI, any OpenAI-compatible)            |
 | Database   | Prisma ORM + PostgreSQL 16                                |
 | Cache      | Redis 7 (ioredis)                                         |
 | Auth       | NextAuth (JWT + OAuth2)                                   |
@@ -279,7 +291,7 @@ pnpm run db:studio        # Open Prisma Studio (GUI)
 ## Roadmap
 
 - [x] Container-isolated agent execution
-- [x] Multi-provider AI support (Claude, GPT, OpenAI-compatible endpoints)
+- [x] Multi-provider AI support (OpenAI, any OpenAI-compatible endpoints)
 - [ ] First-class Azure, DeepSeek, Gemini, Kimi, OpenRouter providers
 - [x] Warm container pool (~50ms cold start)
 - [x] Swarm orchestration with DAG dependencies
@@ -306,8 +318,11 @@ This section covers installing Clawix locally on macOS and optionally pinning it
 | [Docker Desktop](https://www.docker.com/products/docker-desktop/) | Download and install from docker.com |
 | [Homebrew](https://brew.sh) | `/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"` |
 | Node.js 20+ | `brew install node` |
+| pnpm | `npm install -g pnpm` |
 
 > **macOS Sonoma (14+) required** for the "Add to Dock" PWA feature in Safari.
+
+> **Start Docker Desktop before proceeding.** Open it from Applications and wait until the whale icon in the menu bar is steady (not animating). All subsequent steps require the Docker daemon to be running.
 
 ---
 
@@ -316,6 +331,7 @@ This section covers installing Clawix locally on macOS and optionally pinning it
 ```bash
 git clone https://github.com/aibymlngo/clawix-demo.git
 cd clawix-demo
+pnpm install
 ```
 
 ---
@@ -333,10 +349,11 @@ Open `.env` and set the required values:
 node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 # → paste output as PROVIDER_ENCRYPTION_KEY=...
 
-# Add your AI provider key(s):
-ANTHROPIC_API_KEY=sk-ant-xxx
-# OPENAI_API_KEY=sk-xxx   # optional
+# Add your AI provider key — OpenAI is recommended:
+OPENAI_API_KEY=sk-xxx
 ```
+
+> OpenAI is the primary supported provider. Gemini support is planned but not yet available.
 
 ---
 
@@ -366,7 +383,13 @@ docker build -t clawix-agent:latest -f infra/docker/agent/Dockerfile .
 docker compose -f docker-compose.dev.yml up
 ```
 
-Wait about 2 minutes on first run while dependencies install. You will see logs from all services. Once ready:
+Wait until you see this line in the logs before proceeding:
+
+```
+API server listening on 0.0.0.0:3001
+```
+
+This takes about 2 minutes on first run. The API container installs dependencies, generates the Prisma client, and runs database migrations automatically.
 
 | Service | URL |
 |---|---|
@@ -376,7 +399,26 @@ Wait about 2 minutes on first run while dependencies install. You will see logs 
 
 ---
 
-### Step 6 — Install as a Mac app via Safari
+### Step 6 — Seed the database (first run only)
+
+In a new terminal tab, run:
+
+```bash
+cp packages/api/prisma/seed.example.ts packages/api/prisma/seed.ts
+docker exec clawix-api sh -c "cd /app/packages/api && npx tsx prisma/seed.ts"
+```
+
+This creates the default users and agents. Default login credentials:
+
+| Email | Password | Role |
+|---|---|---|
+| `admin@clawix.test` | `password123` | Admin |
+| `dev@clawix.test` | `password123` | Developer |
+| `viewer@clawix.test` | `password123` | Viewer |
+
+---
+
+### Step 7 — Install as a Mac app via Safari
 
 1. Open **Safari** and navigate to `https://localhost:3443`
 2. In the menu bar choose **File → Add to Dock**
@@ -395,7 +437,7 @@ Clawix now appears in your **Dock** and **Launchpad** as a standalone app with n
 # Stop all services
 docker compose -f docker-compose.dev.yml down
 
-# Restart (fast — deps already installed)
+# Restart (fast — deps already installed, no re-seeding needed)
 docker compose -f docker-compose.dev.yml up
 ```
 
@@ -405,6 +447,9 @@ docker compose -f docker-compose.dev.yml up
 
 | Problem | Fix |
 |---|---|
+| `ERR_CONNECTION_RESET` on login | Docker Desktop was not running when containers started. Stop all containers, start Docker Desktop fully, then run `docker compose -f docker-compose.dev.yml up` again |
+| `401 Unauthorized` on login | Database not seeded. Run: `cp packages/api/prisma/seed.example.ts packages/api/prisma/seed.ts && docker exec clawix-api sh -c "cd /app/packages/api && npx tsx prisma/seed.ts"` |
+| API logs show 200+ TypeScript errors | Prisma client not generated. Run: `docker exec clawix-api sh -c "cd /app/packages/api && npx prisma generate --schema=prisma/schema.prisma"` then `docker restart clawix-api` |
 | Safari shows "not secure" warning | Re-run `./scripts/setup-https.sh` — the root CA may not have been installed |
 | `File → Add to Dock` is greyed out | Requires macOS Sonoma 14+ and Safari 17+ |
 | Port 3443 already in use | Change the port in `infra/Caddyfile` and `docker-compose.dev.yml` |
