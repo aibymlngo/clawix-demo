@@ -634,7 +634,7 @@ export default function UsersPage() {
                 <Check className="size-8 text-green-500 animate-in zoom-in-50 duration-300" />
               </div>
               <div className="text-center">
-                <h3 className="text-lg font-semibold">User Created</h3>
+                <DialogTitle className="text-lg font-semibold">User Created</DialogTitle>
                 <p className="mt-1 text-sm text-muted-foreground">
                   <strong>{createdUserName}</strong> has been added to the platform.
                 </p>
@@ -678,7 +678,7 @@ export default function UsersPage() {
                 <Check className="size-8 text-green-500 animate-in zoom-in-50 duration-300" />
               </div>
               <div className="text-center">
-                <h3 className="text-lg font-semibold">All Set!</h3>
+                <DialogTitle className="text-lg font-semibold">All Set!</DialogTitle>
                 <p className="mt-1 text-sm text-muted-foreground">
                   <strong>{createdUserName}</strong> has been created and assigned a primary agent.
                 </p>

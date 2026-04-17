@@ -143,10 +143,8 @@ export function useChat() {
       wsRef.current = null;
     }
 
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsBase =
-      process.env['NEXT_PUBLIC_WS_URL'] ??
-      `${protocol}//${window.location.hostname}:3001`;
+    const apiUrl = process.env['NEXT_PUBLIC_API_URL'] ?? `http://${window.location.hostname}:3001`;
+    const wsBase = apiUrl.replace(/^https:/, 'wss:').replace(/^http:/, 'ws:');
     const wsUrl = `${wsBase}/ws/chat?token=${token}`;
     const ws = new WebSocket(wsUrl);
 

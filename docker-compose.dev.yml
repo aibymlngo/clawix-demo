@@ -117,7 +117,7 @@ services:
       PORT: '3000'
       HOST: '0.0.0.0'
       NODE_ENV: development
-      NEXT_PUBLIC_API_URL: http://localhost:3001
+      NEXT_PUBLIC_API_URL: https://localhost:3444
     command: >
       sh -c "corepack enable &&
              corepack prepare pnpm@latest --activate &&

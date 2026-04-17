@@ -288,6 +288,88 @@ pnpm run db:studio        # Open Prisma Studio (GUI)
 
 ---
 
+## Regulating the Agentic Model
+
+Clawix gives you several levers to control which AI model agents use, how much they can spend, and what they are allowed to do.
+
+### 1. Change the AI Provider & Model
+
+Edit an agent definition in the dashboard (**Agents → Edit**) or directly in the seed file:
+
+```ts
+// packages/api/prisma/seed.ts
+provider: 'openai',   // 'openai' | 'zai-coding' | any custom provider name
+model: 'gpt-4o',      // any model supported by the provider
+```
+
+Or update via the API:
+```bash
+PATCH /api/v1/agents/:id
+{ "provider": "openai", "model": "gpt-4.1" }
+```
+
+> Supported today: `openai` (gpt-4o, gpt-4.1, o1, o3, o4-mini), `zai-coding` (glm-*), or any OpenAI-compatible endpoint via a custom provider.
+
+---
+
+### 2. Set Token & Cost Budgets (Policies)
+
+Policies cap how much each user or group can spend. Configure them in **Settings → Policies**:
+
+```ts
+maxTokenBudget: 1000,      // $10.00 in cents — null = unlimited
+maxAgents: 5,              // max agent definitions a user can create
+maxSkills: 20,             // max skills available to the user
+allowedProviders: ['openai'],  // restrict which providers a user can use
+cronEnabled: true,         // allow scheduled/cron agent runs
+```
+
+Assign a policy to a user in **Settings → Users → Edit**.
+
+---
+
+### 3. Control What Agents Can Do (System Prompt)
+
+Each agent has a `systemPrompt` that defines its behavior and constraints:
+
+```ts
+systemPrompt: 'You are a helpful assistant. Never execute destructive commands. Always ask for confirmation before modifying files.'
+```
+
+Edit via **Agents → Edit → System Prompt** in the dashboard.
+
+---
+
+### 4. Restrict Container Resources
+
+Each agent runs in an isolated Docker container. Adjust CPU and memory limits per agent:
+
+```ts
+containerConfig: {
+  cpuLimit: '0.5',      // 0.5 CPU cores
+  memoryLimit: '256m',  // 256 MB RAM
+  timeoutSeconds: 120,  // max run time
+  readOnlyRootfs: true, // prevent filesystem writes
+}
+```
+
+---
+
+### 5. Add a Custom OpenAI-Compatible Provider (e.g. Ollama, local LLM)
+
+In **Settings → Providers → Add Provider**, set:
+
+| Field | Value |
+|---|---|
+| Provider name | `custom` (or any label) |
+| API Base URL | `http://localhost:11434/v1` (Ollama example) |
+| API Key | `ollama` (or leave blank) |
+| Default model | `llama3.2` (or whichever model you pulled) |
+
+No code changes required — any OpenAI-compatible endpoint works immediately.
+
+---
+
 ## Roadmap
 
 - [x] Container-isolated agent execution
