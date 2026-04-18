@@ -37,7 +37,9 @@
       "prisma"
     ],
     "overrides": {
-      "serialize-javascript": ">=7.0.5"
+      "serialize-javascript": ">=7.0.5",
+      "fastify": ">=5.8.5",
+      "@hono/node-server": ">=1.19.13"
     }
   },
   "devDependencies": {
